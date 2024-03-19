@@ -1,0 +1,151 @@
+[comment encoding = UTF-8 /]
+[module generate('http://www.eclipse.org/uml2/5.0.0/UML')]
+
+
+[template public generateElement(aClass : Class)]
+[comment @main/]
+
+[comment Generate the package declaration /]
+
+[let packageName: String = aClass._package.name /]
+
+[file (aClass._package.name.replaceAll('\\.', '/') + '/' + aClass.name.concat('.java'), false, 'UTF-8')]
+[if (aClass._package.name.size() > 0)]
+package [aClass._package.name /];
+[/if]
+
+public [if (aClass.isAbstract)]abstract [/if]class [aClass.name/][if (aClass.superClass->notEmpty())]
+ extends [aClass.superClass._package.name/].[aClass.superClass.name/][/if][if (aClass.generalization->select(g | g.general.oclIsTypeOf(Interface))->notEmpty())]
+ implements[for (generalization : Generalization | aClass.generalization->select(g | g.general.oclIsTypeOf(Interface))) separator (',')] [generalization.general._package.name/].[generalization.general.name/] [/for] [/if] {
+[GenerateConstructorClass(aClass)/]
+[GenerateGetSetClass(aClass)/]
+[GenerateMethods(aClass)/]
+[if (not aClass.generalization->isEmpty())]
+[GenerateAbstractMethodsOverride(aClass)/]
+[/if]
+
+}
+[/file]
+[/template]
+
+
+[template public GenerateConstructorClass (aClass : Class)]
+[if (not aClass.attribute->isEmpty())]
+
+	[for (atributo:Property | aClass.attribute) separator ('\n')]
+	private [if (not atributo.isUnique)] List <[if (atributo.type.oclIsTypeOf(Class) or atributo.type.oclIsTypeOf(Interface))][atributo.type._package.name/].[/if][atributo.type.name/]> [else] [if (atributo.type.oclIsTypeOf(Class) or atributo.type.oclIsTypeOf(Interface))][atributo.type._package.name/].[/if][atributo.type.name/] [/if] [atributo.name/];
+	[/for]
+[/if]
+
+	public void [aClass.name/](){
+	}
+[if (not aClass.attribute->isEmpty())]
+
+	public void [aClass.name/]([for (atributo:Property | aClass.attribute) separator (',')][if (not atributo.isUnique)] List <[if (atributo.type.oclIsTypeOf(Class) or atributo.type.oclIsTypeOf(Interface))][atributo.type._package.name/].[/if][atributo.type.name/]> [else] [if (atributo.type.oclIsTypeOf(Class) or atributo.type.oclIsTypeOf(Interface))][atributo.type._package.name/].[/if][atributo.type.name/] [/if] [atributo.name/][/for] ) {
+		[for (atributo:Property | aClass.attribute)]
+		this.[atributo.name/]=[atributo.name/];
+	    [/for]
+	}
+[/if]
+[/template]
+
+[template GenerateMethods(aClass:Class)]
+[if (not aClass.ownedOperation->isEmpty())]
+	/**
+	Se generan los métodos operacionales de las clases
+	*/
+
+[for (method:Operation| aClass.ownedOperation) separator ('\n')]
+[if (aClass.isAbstract)]
+	abstract void [method.name/]([for (param : Parameter | method.ownedParameter) separator (',')] [if (not param.isUnique)] List <[if (param.type.oclIsTypeOf(Class) or param.type.oclIsTypeOf(Interface))][param.type._package.name/].[/if][param.type.name/]> [else] [if (param.type.oclIsTypeOf(Class) or param.type.oclIsTypeOf(Interface))][param.type._package.name/].[/if][param.type.name/] [/if] [param.name/] [/for]);
+
+[else]
+	[method.visibility.toString().toLower()/] void [method.name/]([for (param : Parameter | method.ownedParameter) separator (',')] [if (not param.isUnique)] List <[if (param.type.oclIsTypeOf(Class) or param.type.oclIsTypeOf(Interface))][param.type._package.name/].[/if][param.type.name/]> [else] [if (param.type.oclIsTypeOf(Class) or param.type.oclIsTypeOf(Interface))][param.type._package.name/].[/if][param.type.name/] [/if] [param.name/] [/for]) {
+
+
+	};
+[/if]
+[/for]
+[/if]
+[/template]
+
+
+[template public GenerateGetSetClass (aClass : Class)]
+[if (not aClass.attribute->isEmpty())]
+	/**
+	Se generan los métodos getters and setters
+	*/
+
+[for (atributo:Property | aClass.attribute) separator ('\n')]
+	private [if (atributo.type.oclIsTypeOf(Class) or atributo.type.oclIsTypeOf(Interface))][atributo.type._package.name/].[/if][atributo.type.name/] get[atributo.name.toUpperFirst()/]() {
+		return this.[atributo.name/];
+	}
+	[/for]
+
+[for (atributo:Property | aClass.attribute) separator ('\n')]
+	public void set[atributo.name.toUpperFirst()/]([if (atributo.type.oclIsTypeOf(Class) or atributo.type.oclIsTypeOf(Interface))][atributo.type._package.name/].[/if][atributo.type.name/] [atributo.name/]) {
+		this.[atributo.name/]=[atributo.name/];
+	}
+[/for]
+[/if]
+[/template]
+
+[template public GenerateAbstractMethodsOverride (aClass : Class)]
+[let superClass : Class = aClass.generalization.general/]
+[if (not superClass.ownedOperation->isEmpty())]
+	/** 
+	Realizando Override de metodos que extienden de [superClass.name/] 
+	*/
+
+[for (method: Operation | superClass.ownedOperation) separator ('\n')]
+    [if (method.isAbstract)]
+    @Override
+    [/if]
+    [method.visibility.toString().toLower()/] void [method.name/]([for (param : Parameter | method.ownedParameter) separator (',')] [if (not param.isUnique)] List <[if (param.type.oclIsTypeOf(Class) or param.type.oclIsTypeOf(Interface))][param.type._package.name/].[/if][param.type.name/]> [else] [if (param.type.oclIsTypeOf(Class) or param.type.oclIsTypeOf(Interface))][param.type._package.name/].[/if][param.type.name/] [/if] [param.name/] [/for]) {
+		
+        // Implementar la lógica de la redefinición del método    
+	}
+[/for]
+[/if]
+
+[/template]
+
+
+
+
+
+[template public generateElement(aClass : Interface)]
+[comment @main/]
+
+[comment Generate the package declaration /]
+
+[let packageName: String = aClass._package.name /]
+
+[file (aClass._package.name.replaceAll('\\.', '/') + '/' + aClass.name.concat('.java'), false, 'UTF-8')]
+[if (aClass._package.name.size() > 0)]
+package [aClass._package.name /];
+[/if]
+
+public interface [aClass.name/][if (aClass.allParents()->notEmpty())] extends [for (parent:Classifier | aClass.allParents()) separator (',')] [ parent.name /][/for] [/if] {
+[GenerateMethods(aClass)/]
+
+}
+[/file]
+[/template]
+
+[template GenerateMethods(aClass:Interface)]
+[if (not aClass.ownedOperation->isEmpty())]
+	/**
+	Se generan los métodos operacionales de las interfaces
+	*/
+
+[for (method:Operation| aClass.ownedOperation) separator ('\n')]
+[if (aClass.isAbstract)]
+	abstract void [method.name/]([for (param : Parameter | method.ownedParameter) separator (',')] [if (not param.isUnique)] List <[if (param.type.oclIsTypeOf(Class) or param.type.oclIsTypeOf(Interface))][param.type._package.name/].[/if][param.type.name/]> [else] [if (param.type.oclIsTypeOf(Class) or param.type.oclIsTypeOf(Interface))][param.type._package.name/].[/if][param.type.name/] [/if] [param.name/] [/for]);
+
+[else]
+	[method.visibility.toString().toLower()/] void [method.name/]([for (param : Parameter | method.ownedParameter) separator (',')] [if (not param.isUnique)] List <[if (param.type.oclIsTypeOf(Class) or param.type.oclIsTypeOf(Interface))][param.type._package.name/].[/if][param.type.name/]> [else] [if (param.type.oclIsTypeOf(Class) or param.type.oclIsTypeOf(Interface))][param.type._package.name/].[/if][param.type.name/] [/if] [param.name/] [/for]);
+[/if]
+[/for]
+[/if]
+[/template]
